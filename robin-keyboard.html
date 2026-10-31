@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>রবিন কিবোর্ড</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;600&family=Hind+Siliguri:wght@400;600&family=Doto:wght@100..900&display=swap">
+<style>
+:root{
+  box-sizing:border-box; color-scheme:dark;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  --page:#000; --kb1:#000; --kb2:#1c1d20; --key:#585a5e; --hi:#7a7d84; --sp:#222326;
+  --acc:#e9ebf2; --ink:#15161a; --field:#111317; --text:#eceef3; --ktext:#f1f2f6;
+  --bn:"Noto Sans Bengali","Nirmala UI";
+}
+:root[data-theme="purple"]{--page:#120a1f;--kb1:#140b24;--kb2:#2a1448;--key:#6b4aa8;--hi:#8a68c7;--sp:#35205c;--acc:#d9c2ff;--ink:#24103f;--field:#1c1030;--text:#f1e9ff;--ktext:#f6f0ff}
+:root[data-theme="red"]{--page:#1a0707;--kb1:#1c0808;--kb2:#3a0f10;--key:#b02a30;--hi:#d4474d;--sp:#5a1417;--acc:#ffd5d5;--ink:#3a0a0c;--field:#260c0d;--text:#ffeaea;--ktext:#fff1f1}
+:root[data-theme="blue"]{--page:#07111f;--kb1:#08142a;--kb2:#0f2a52;--key:#2f63b5;--hi:#4d85d9;--sp:#143663;--acc:#cfe3ff;--ink:#0b2447;--field:#0c1b33;--text:#e8f1ff;--ktext:#f2f7ff}
+:root[data-theme="green"]{--page:#071a10;--kb1:#081f12;--kb2:#0f3a22;--key:#2b8a55;--hi:#45ad72;--sp:#14492c;--acc:#c9f5dc;--ink:#0a2e1b;--field:#0d2618;--text:#e7fff0;--ktext:#f1fff6}
+:root[data-theme="pink"]{--page:#200a17;--kb1:#240b19;--kb2:#4a1633;--key:#c2478a;--hi:#e063a6;--sp:#6b1f4a;--acc:#ffd1e8;--ink:#3b0e28;--field:#2d1022;--text:#ffeaf5;--ktext:#fff0f8}
+:root[data-theme="orange"]{--page:#1c1005;--kb1:#1f1206;--kb2:#40240a;--key:#c26a1a;--hi:#e5882f;--sp:#6a3a0f;--acc:#ffe0bd;--ink:#3a1d05;--field:#281807;--text:#fff0e0;--ktext:#fff6ec}
+:root[data-theme="teal"]{--page:#061a1a;--kb1:#071c1c;--kb2:#0d3a3a;--key:#238a8a;--hi:#3cb0b0;--sp:#11494a;--acc:#c8f5f5;--ink:#083030;--field:#0b2626;--text:#e6ffff;--ktext:#f0ffff}
+:root[data-theme="light"]{color-scheme:light;--page:#e9ebf0;--kb1:#dfe2e8;--kb2:#cfd3dc;--key:#ffffff;--hi:#e2e5ec;--sp:#c3c8d3;--acc:#2f4fd0;--ink:#ffffff;--field:#ffffff;--text:#1b2030;--ktext:#1b2030}
+html,body{height:100%}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--page); color:var(--text); max-width:480px; margin-inline:auto;
+  font-family:var(--bn),system-ui,"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif;
+  display:flex; flex-direction:column;
+}
+textarea{
+  flex:1; min-height:0; margin:12px 12px 10px; padding:12px; resize:none;
+  font:inherit; font-size:1.2rem; line-height:1.6; background:var(--field); color:var(--text);
+  border:1px solid var(--sp); border-radius:10px;
+}
+textarea:focus-visible{outline:2px solid var(--acc); outline-offset:1px}
+svg{width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; pointer-events:none}
+.kb{position:relative; background:linear-gradient(var(--kb1),var(--kb2)); padding:2px 3px 6px; user-select:none; -webkit-user-select:none}
+.tb{display:flex; margin-bottom:4px}
+.tb button{flex:1; height:36px; display:grid; place-items:center; background:none; border:0; border-radius:8px; color:var(--ktext); opacity:.85; cursor:pointer}
+.tb button.on{background:var(--sp); opacity:1}
+.tb button:focus-visible,.key:focus-visible{outline:2px solid var(--acc); outline-offset:-2px}
+.row{display:flex; gap:4px; padding:0 2px; margin-bottom:5px}
+.row.inset{padding:0 5.5%}
+.key{
+  position:relative; flex:1; min-width:0; height:43px; padding:0; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  font:inherit; font-size:1.25rem; color:var(--ktext);
+  background:var(--key); border:0; border-radius:5px; touch-action:manipulation;
+}
+.row.dig .key{height:34px; font-size:1.1rem}
+.key:active{background:var(--hi)}
+.key sup{position:absolute; top:1px; right:3px; font-size:.58rem; line-height:1; opacity:.7}
+.key.sp{background:var(--sp); font-size:.95rem}
+.key.on{background:var(--acc); color:var(--ink)}
+.key.w15{flex:1.5} .key.w19{flex:1.9}
+.key.space{flex:4; justify-content:space-between; padding:0 6px; font-size:.95rem; touch-action:none}
+.key.space span{opacity:.85}
+.key.space .arr{padding:8px 6px; display:grid; place-items:center}
+.key.space svg{width:14px; height:14px}
+.emo{display:grid; grid-template-columns:repeat(8,1fr); gap:2px; height:140px; overflow-y:auto; padding:0 2px; margin-bottom:5px; align-content:start}
+.key.e{background:none; font-size:1.5rem; height:40px}
+.key.tab{background:none; height:34px; font-size:.85rem}
+.key.tab.on{background:var(--acc); color:var(--ink)}
+.list{height:140px; overflow-y:auto; padding:0 2px; margin-bottom:5px; display:flex; flex-direction:column; gap:4px}
+.list .key{flex:none; height:36px; justify-content:flex-start; padding:0 12px; font-size:1rem; overflow:hidden; white-space:nowrap}
+.list p{margin:12px; opacity:.7; font-size:.9rem}
+.list.themes{display:grid; grid-template-columns:repeat(3,1fr); align-content:start}
+.list.themes .key{justify-content:center; height:44px}
+.list .key.fnt{justify-content:space-between; gap:10px; height:46px}
+.pop{position:absolute; z-index:5; display:flex; gap:4px; padding:5px; background:var(--sp); border-radius:8px; box-shadow:0 2px 10px #0008}
+.pop button{min-width:38px; height:40px; font:inherit; font-size:1.2rem; color:var(--ktext); background:var(--key); border:0; border-radius:5px; cursor:pointer}
+.toast{position:absolute; left:50%; top:40px; transform:translateX(-50%); z-index:6; background:var(--acc); color:var(--ink); padding:6px 12px; border-radius:14px; font-size:.85rem; white-space:nowrap}
+.kb.mond{background:#000}
+.kb.mond .row{gap:5px}
+.kb.mond .row .key{height:52px; border-radius:13px; font-family:"Doto",monospace; font-weight:800; font-size:1.7rem}
+.kb.mond .row.dig .key{height:40px; font-size:1.2rem}
+.kb.mond .row .key.sp{font-size:1.15rem}
+.kb.mond .row .key.space{font-size:1rem}
+.kb.mond .row .key sup{font-family:"Doto",monospace; font-weight:700; font-size:.72rem; opacity:.8}
+.kb.mond .row .key.y{background:#e9b92c; color:#111}
+.kb.mond .row .key.b{background:#2a5aa3; color:#fff}
+.kb.mond .row .key.r{background:#d4302f; color:#fff}
+.kb.mond .row .key.w{background:#efece8; color:#111}
+.kb.mond .row .key.k{background:#1b1d21; color:#f2f2f2}
+.kb.mond .row .key:active{filter:brightness(.82)}
+.kb.mond .row .key.on{outline:3px solid #fff; outline-offset:-3px}
+.mk{color:transparent; font-style:normal; pointer-events:none}
+</style>
+</head>
+<body>
+<textarea id="out" inputmode="none" aria-label="লেখার জায়গা" placeholder="এখানে লিখুন / Type here…"></textarea>
+<div class="kb" id="kb"></div>
+<script>
+const BN = [
+  [["১","1"],["২","2"],["৩","3"],["৪","4"],["৫","5"],["৬","6"],["৭","7"],["৮","8"],["৯","9"],["০","0"]],
+  [["দ","ধ"],["ূ","ঊ"],["ী","ঈ"],["র","ড়"],["ট","ঠ"],["এ","ঐ"],["ু","উ"],["ি","ই"],["ও","ঔ"],["প","ফ"],["ে","ৈ"],["ো","ৌ"]],
+  [["া","অ"],["স","য","ষ"],["ড","ঢ"],["ত","থ"],["গ","ঘ"],["হ","ঃ"],["জ","ঝ"],["ক","খ"],["ল","ং"]],
+  [["য়","ৎ"],["শ","ঢ়"],["চ","ছ"],["আ","ঋ"],["ব","ভ"],["ন","ণ","ঞ"],["ম","ঙ"],["্","ৃ"],["ঁ"]]
+];
+const EN = [
+  [["1","!"],["2","@"],["3","#"],["4","$"],["5","%"],["6","^"],["7","&"],["8","*"],["9","("],["0",")"]],
+  ...["qwertyuiop","asdfghjkl","zxcvbnm"].map(s => [...s].map(c => [c, c.toUpperCase()]))
+];
+const SYM = ['-/:;()৳$&@"', "#%*+=_~<>{}"].map(s => [...s].map(c => [c]));
+const EMOJI = [
+  ["মুখ","😀 😃 😄 😁 😆 😅 😂 🤣 😊 😇 🙂 🙃 😉 😌 😍 🥰 😘 😋 😛 😜 🤪 🤗 🤭 🤔 😐 😏 😒 🙄 😬 😔 😴 😷 🤒 🤢 🥵 🥶 🤯 🥳 😎 🤓 😕 😟 🙁 😮 😲 😳 🥺 😢 😭 😱 😩 😤 😡 😠 😈 💀 💩 🤡 👻 👽 🤖"],
+  ["হাত","👍 👎 👌 ✌️ 🤞 🤟 🤘 🤙 👈 👉 👆 👇 ☝️ 👋 ✋ 👏 🙌 🤝 🙏 💪 ✍️ 💅 👀 👅 👄 🧠 👶 👦 👧 👨 👩 👴 👵"],
+  ["হার্ট","❤️ 🧡 💛 💚 💙 💜 🖤 🤍 🤎 💔 ❣️ 💕 💞 💓 💗 💖 💘 💝 💯 ✨ 🔥 ⭐ 🌟 💥 💫 🎉 🎊 🎁 ✅ ❌ ❓ ❗ 💤 💬 🔔 ⚠️ 🆗"],
+  ["প্রাণী","🐶 🐱 🐭 🐹 🐰 🦊 🐻 🐼 🐨 🐯 🦁 🐮 🐷 🐸 🐵 🙈 🙉 🙊 🐔 🐧 🐦 🦆 🦅 🦉 🐴 🦄 🐝 🦋 🐢 🐍 🐙 🐬 🐳 🐘 🌸 🌹 🌻 🌴 🌈"],
+  ["খাবার","🍎 🍌 🍉 🍇 🍓 🍒 🥭 🍍 🥥 🥑 🍅 🥕 🌽 🍞 🧀 🍳 🍔 🍟 🍕 🌭 🍜 🍣 🍦 🍩 🍪 🎂 🍫 ☕ 🍵 🥤 🍺"],
+  ["খেলা","⚽ 🏀 🏏 🏈 🎾 🏆 🥇 🎮 🎯 🎵 🎧 🎸 🚗 🚌 🚲 ✈️ 🚀 🚢 🏠 🏫 🌍 🌙 ☀️ ⛅ 🌧️ ⚡ ❄️"]
+];
+const THEMES = [
+  ["dark","ডার্ক","#585a5e","#f1f2f6"],["purple","বেগুনি","#6b4aa8","#f6f0ff"],["red","লাল","#b02a30","#fff1f1"],
+  ["blue","নীল","#2f63b5","#f2f7ff"],["green","সবুজ","#2b8a55","#f1fff6"],["pink","গোলাপি","#c2478a","#fff0f8"],
+  ["orange","কমলা","#c26a1a","#fff6ec"],["teal","টিল","#238a8a","#f0ffff"],["light","লাইট","#ffffff","#1b2030"],["mondrian","মন্ড্রিয়ান","#e9b92c","#111"]
+];
+const P = {
+  globe:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/>',
+  smile:'<circle cx="12" cy="12" r="9"/><path d="M8 14c1 1.6 2.4 2.2 4 2.2s3-.6 4-2.2"/><circle cx="9" cy="10" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="10" r="1" fill="currentColor" stroke="none"/>',
+  clip:'<rect x="6" y="5" width="12" height="16" rx="2"/><path d="M9 5V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1M9 11h6M9 15h6"/>',
+  palette:'<path d="M12 3a9 9 0 1 0 0 18c1.5 0 2-1 1.5-2-.5-1 0-2 1.2-2H17a4 4 0 0 0 4-4c0-5-4-10-9-10z"/><circle cx="8" cy="11" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="7.5" r="1" fill="currentColor" stroke="none"/><circle cx="16" cy="11" r="1" fill="currentColor" stroke="none"/>',
+  dots:'<circle cx="5" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.4" fill="currentColor" stroke="none"/>',
+  mic:'<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>',
+  shift:'<path d="M12 4l8 9h-5v6H9v-6H4z"/>',
+  back:'<path d="M9 5h11a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H9l-6-7z"/><path d="M13 10l5 5M18 10l-5 5"/>',
+  enter:'<path d="M20 5v7a2 2 0 0 1-2 2H5M9 10l-4 4 4 4"/>',
+  font:'<path d="M5 19L12 5l7 14M8 14h8"/>',
+  left:'<path d="M15 6l-6 6 6 6"/>', right:'<path d="M9 6l6 6-6 6"/>'
+};
+const ic = n => '<svg viewBox="0 0 24 24" aria-hidden="true">' + P[n] + '</svg>';
+const KARS = "ািীুূৃেৈোৌ";
+const out = document.getElementById("out"), kb = document.getElementById("kb");
+const S = { lang: "bn", layer: "main", shift: false, panel: null, cat: 0, listen: false, theme: "dark" };
+const clips = [];
+let rec, toastT;
+
+function setTheme(id){
+  S.theme = id; document.documentElement.dataset.theme = id;
+  try { localStorage.setItem("robinTheme", id); } catch (e) {}
+}
+try { const t = localStorage.getItem("robinTheme"); if (t && THEMES.some(x => x[0] === t)) setTheme(t); } catch (e) {}
+
+const FONTS = [["noto","নোটো সানস",'"Noto Sans Bengali"'],["hind","হিন্দ শিলিগুড়ি",'"Hind Siliguri"'],["kalpurush","কালপুরুষ",'"Kalpurush"'],["system","সিস্টেম (আইফোনে SF)",'-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui']];
+function hasFont(n){
+  const c = document.createElement("canvas").getContext("2d"), t = "কখগঘ আমি";
+  c.font = "40px monospace"; const a = c.measureText(t).width;
+  c.font = '40px "' + n + '", monospace';
+  return c.measureText(t).width !== a;
+}
+function setFont(id){
+  const f = FONTS.find(x => x[0] === id) || FONTS[0];
+  S.font = f[0];
+  document.documentElement.style.setProperty("--bn", f[2] + (f[0] === "system" ? "" : ',"Noto Sans Bengali","Nirmala UI"'));
+  try { localStorage.setItem("robinFont", f[0]); } catch (e) {}
+}
+S.font = "noto";
+try { const f = localStorage.getItem("robinFont"); if (f && (f !== "kalpurush" || hasFont("Kalpurush"))) setFont(f); } catch (e) {}
+
+function insert(t){ out.setRangeText(t, out.selectionStart, out.selectionEnd, "end"); out.focus(); }
+function back(){
+  const s = out.selectionStart, e = out.selectionEnd;
+  if (s !== e) { out.setRangeText("", s, e, "end"); out.focus(); return; }
+  if (!s) return;
+  const before = out.value.slice(0, s);
+  let n;
+  if (/[\p{Extended_Pictographic}\uFE0F\u200D]$/u.test(before) && Intl.Segmenter) {
+    const g = [...new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(before)];
+    n = g[g.length - 1].segment.length;
+  } else n = [...before].pop().length;
+  out.setRangeText("", s - n, s, "end"); out.focus();
+}
+function move(d){
+  const p = Math.max(0, Math.min(out.value.length, out.selectionStart + d));
+  out.setSelectionRange(p, p); out.focus();
+}
+function addClip(t){
+  if (!t) return;
+  const i = clips.indexOf(t); if (i > -1) clips.splice(i, 1);
+  clips.unshift(t); clips.length = Math.min(clips.length, 20);
+}
+function toast(m){
+  document.querySelector(".toast")?.remove();
+  const t = document.createElement("div"); t.className = "toast"; t.textContent = m; kb.appendChild(t);
+  clearTimeout(toastT); toastT = setTimeout(() => t.remove(), 1600);
+}
+function switchLang(){
+  S.lang = S.lang === "bn" ? "en" : "bn"; S.layer = "main"; S.shift = false; S.panel = null;
+  render(); toast(S.lang === "bn" ? "বাংলা (রবিন)" : "English");
+}
+function closePop(){ document.getElementById("pop")?.remove(); }
+function pop(b, list){
+  closePop();
+  const p = document.createElement("div"); p.className = "pop"; p.id = "pop";
+  list.forEach(c => {
+    const x = document.createElement("button"); x.type = "button"; setMark(x, c);
+    x.onclick = () => { insert(c); closePop(); };
+    p.appendChild(x);
+  });
+  kb.appendChild(p);
+  const kr = kb.getBoundingClientRect(), br = b.getBoundingClientRect();
+  p.style.bottom = (kr.bottom - br.top + 4) + "px";
+  const l = br.left - kr.left + br.width / 2 - p.offsetWidth / 2;
+  p.style.left = Math.max(2, Math.min(l, kr.width - p.offsetWidth - 2)) + "px";
+}
+document.addEventListener("pointerdown", e => { if (!e.target.closest(".pop")) closePop(); });
+kb.addEventListener("mousedown", e => e.preventDefault());
+
+function el(tag, cls, txt){ const e = document.createElement(tag); if (cls) e.className = cls; if (txt) e.textContent = txt; return e; }
+function row(cls){ return el("div", "row " + (cls || "")); }
+function spKey(label, on, fn, cls, aria){
+  const b = el("button", "key sp " + (on ? "on " : "") + (cls || ""));
+  b.type = "button";
+  if (label.startsWith("<svg")) b.innerHTML = label; else b.textContent = label;
+  if (aria) b.setAttribute("aria-label", aria);
+  b.onclick = fn; return b;
+}
+const MARKS = /[\u0981\u09BC\u09BE-\u09CC\u09CD\u09D7]/;
+function setMark(node, t){
+  if (t.length === 1 && MARKS.test(t)) node.textContent = "\u00A0" + t;
+  else node.textContent = t;
+}
+function supEl(t){ const s = document.createElement("sup"); setMark(s, t); return s; }
+function letterKey(def, plain){
+  const [main, ...alts] = def;
+  const shown = (!plain && S.shift && alts[0]) ? alts[0] : main;
+  const b = el("button", "key" + (plain ? " sp" : ""), shown);
+  b.type = "button"; b.setAttribute("aria-label", shown);
+  setMark(b, shown);
+  if (S.mond && !plain && alts[1]) b.appendChild(supEl(alts[1]));
+  else if (!plain && alts[0] && !(S.lang === "en" && /^[a-z]$/.test(main))) b.appendChild(supEl(S.shift ? main : alts[0]));
+  let t, long = false;
+  b.addEventListener("pointerdown", () => {
+    long = false; clearTimeout(t);
+    if (alts.length) t = setTimeout(() => { long = true; pop(b, [main, ...alts]); }, 380);
+  });
+  ["pointerup", "pointerleave", "pointercancel"].forEach(ev => b.addEventListener(ev, () => clearTimeout(t)));
+  b.addEventListener("click", () => {
+    if (long) { long = false; return; }
+    insert(shown);
+    if (S.shift) { S.shift = false; render(); }
+  });
+  return b;
+}
+function backKey(cls){
+  const b = spKey(ic("back"), false, back, cls, "ব্যাকস্পেস");
+  let t, r;
+  b.addEventListener("pointerdown", () => { t = setTimeout(() => { r = setInterval(back, 70); }, 400); });
+  ["pointerup", "pointerleave", "pointercancel"].forEach(ev => b.addEventListener(ev, () => { clearTimeout(t); clearInterval(r); }));
+  return b;
+}
+function spaceKey(){
+  const b = el("div", "key space"); b.tabIndex = 0; b.setAttribute("role", "button");
+  b.setAttribute("aria-label", "স্পেস (পাশে স্লাইড করলে ভাষা বদলায়)");
+  const l = el("span", "arr"), r = el("span", "arr");
+  l.innerHTML = ic("left"); r.innerHTML = ic("right");
+  b.append(l, el("span", "", S.lang === "bn" ? "রবিন" : "English"), r);
+  let x0 = null, swiped = false;
+  b.addEventListener("pointerdown", e => { x0 = e.clientX; swiped = false; try { b.setPointerCapture(e.pointerId); } catch (_) {} });
+  b.addEventListener("pointermove", e => { if (x0 !== null && Math.abs(e.clientX - x0) > 40) swiped = true; });
+  b.addEventListener("pointerup", () => { x0 = null; if (swiped) switchLang(); });
+  b.addEventListener("pointercancel", () => { x0 = null; });
+  b.onclick = e => {
+    if (swiped) { swiped = false; return; }
+    if (l.contains(e.target)) move(-1); else if (r.contains(e.target)) move(1); else insert(" ");
+  };
+  return b;
+}
+const MROWS = ["qwertyuiop", "asdfghjkl", "zxcvbnm"];
+const MSUP = ["1234567890", "@#&*-!?()", '";ç=\':/'];
+const MCOL = ["ybkwrbwryk", "wrbkywrbk", "kywrbky"];
+function mondC(k, c){ k.classList.add(c); return k; }
+function mondRows(){
+  MROWS.forEach((s, i) => {
+    const rw = row(i === 1 ? "inset" : "");
+    if (i === 2) rw.appendChild(mondC(spKey(ic("shift"), S.shift, () => { S.shift = !S.shift; render(); }, "w19", "শিফট"), "y"));
+    [...s].forEach((c, j) => rw.appendChild(mondC(letterKey([c, c.toUpperCase(), MSUP[i][j]]), MCOL[i][j])));
+    if (i === 2) rw.appendChild(mondC(backKey("w19"), "w"));
+    kb.appendChild(rw);
+  });
+  const bot = row();
+  bot.appendChild(mondC(spKey("?123", false, () => { S.layer = "sym"; S.shift = false; render(); }, "w15", "চিহ্ন"), "r"));
+  bot.appendChild(mondC(spKey(ic("smile"), false, () => { S.panel = "emoji"; render(); }, "", "ইমোজি"), "b"));
+  bot.appendChild(mondC(letterKey([",", ";", ":", "?", "!", "'", '"'], true), "w"));
+  bot.appendChild(mondC(spaceKey(), "k"));
+  bot.appendChild(mondC(letterKey([".", "?", "!", ":", ";", "-"], true), "k"));
+  bot.appendChild(mondC(spKey(ic("enter"), false, () => insert("\n"), "w15", "নতুন লাইন"), "r"));
+  kb.appendChild(bot);
+}
+function mainRows(){
+  const bn = S.lang === "bn", sym = S.layer === "sym";
+  if (S.mond && !sym) return mondRows();
+  const rows = sym ? [(bn ? BN : EN)[0], ...SYM] : (bn ? BN : EN);
+  rows.forEach((r, i) => {
+    const rw = row(i === 0 ? "dig" : (!sym && i === 2 ? "inset" : ""));
+    if (i === 3 && !sym) rw.appendChild(spKey(ic("shift"), S.shift, () => { S.shift = !S.shift; render(); }, "w19", "শিফট"));
+    r.forEach((d, j) => { const k = letterKey(d); if (S.mond) k.classList.add("ybkwrbwr"[(i + j) % 8]); rw.appendChild(k); });
+    if ((i === 3 && !sym) || (sym && i === rows.length - 1)) rw.appendChild(backKey("w19"));
+    kb.appendChild(rw);
+  });
+  const bot = row();
+  bot.appendChild(spKey(bn ? "?১২৩" : "?123", sym, () => { S.layer = sym ? "main" : "sym"; S.shift = false; render(); }, "w15", "চিহ্ন"));
+  bot.appendChild(spKey(ic("smile"), false, () => { S.panel = "emoji"; render(); }, "", "ইমোজি"));
+  bot.appendChild(letterKey([",", ";", ":", "?", "!", "'", '"'], true));
+  bot.appendChild(spaceKey());
+  bot.appendChild(letterKey(bn ? ["।", "॥", ".", "?", "!"] : [".", "?", "!", ":", ";", "-"], true));
+  bot.appendChild(spKey(ic("enter"), false, () => insert("\n"), "w15", "নতুন লাইন"));
+  kb.appendChild(bot);
+}
+function panelBody(){
+  if (S.panel === "emoji") {
+    const tabs = row();
+    EMOJI.forEach((c, i) => {
+      const b = el("button", "key tab" + (i === S.cat ? " on" : ""), c[0]); b.type = "button";
+      b.onclick = () => { S.cat = i; render(); }; tabs.appendChild(b);
+    });
+    kb.appendChild(tabs);
+    const g = el("div", "emo");
+    EMOJI[S.cat][1].split(" ").forEach(e => {
+      const b = el("button", "key e", e); b.type = "button"; b.onclick = () => insert(e); g.appendChild(b);
+    });
+    kb.appendChild(g);
+  } else if (S.panel === "font") {
+    const l = el("div", "list");
+    FONTS.forEach(([id, name, stack]) => {
+      const ok = id !== "kalpurush" || hasFont("Kalpurush");
+      const b = el("button", "key fnt"); b.type = "button";
+      const n = el("span", "", name + (ok ? "" : " (ইনস্টল নেই)")), s = el("span", "", "কখগ আমি");
+      s.style.fontFamily = id === "system" ? stack : stack + ",'Noto Sans Bengali'";
+      b.append(n, s);
+      if (id === S.font) b.style.outline = "3px solid var(--acc)";
+      b.onclick = () => { if (!ok) { toast("এই ফন্ট ফোনে ইনস্টল করা নেই"); return; } setFont(id); render(); };
+      l.appendChild(b);
+    });
+    kb.appendChild(l);
+  } else if (S.panel === "theme") {
+    const g = el("div", "list themes");
+    THEMES.forEach(([id, name, bg, fg]) => {
+      const b = el("button", "key", name); b.type = "button";
+      b.style.background = bg; b.style.color = fg;
+      if (id === S.theme) b.style.outline = "3px solid var(--acc)";
+      b.onclick = () => { setTheme(id); render(); if (id === "mondrian") toast("এই থিম শুধু ইংরেজি কিবোর্ডে দেখাবে"); };
+      g.appendChild(b);
+    });
+    kb.appendChild(g);
+  } else {
+    const l = el("div", "list");
+    if (S.panel === "clip") {
+      if (!clips.length) l.appendChild(el("p", "", "কিছু কপি করলে এখানে জমা হবে।"));
+      clips.forEach(c => { const b = el("button", "key", c); b.type = "button"; b.onclick = () => insert(c); l.appendChild(b); });
+    } else {
+      [["সব লেখা কপি করুন", async () => {
+        addClip(out.value);
+        try { await navigator.clipboard.writeText(out.value); } catch (e) { out.select(); document.execCommand("copy"); }
+        toast("কপি হয়েছে");
+      }], ["সব লেখা মুছুন", () => { out.value = ""; out.focus(); toast("মুছে গেছে"); }]
+      ].forEach(([t, fn]) => { const b = el("button", "key", t); b.type = "button"; b.onclick = fn; l.appendChild(b); });
+    }
+    kb.appendChild(l);
+  }
+  const bot = row();
+  bot.appendChild(spKey(S.lang === "bn" ? "কখ" : "ABC", false, () => { S.panel = null; render(); }, "w15", "কিবোর্ডে ফিরুন"));
+  bot.appendChild(spaceKey());
+  bot.appendChild(backKey("w15"));
+  bot.appendChild(spKey(ic("enter"), false, () => insert("\n"), "w15", "নতুন লাইন"));
+  kb.appendChild(bot);
+}
+function voice(){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { toast("এই ব্রাউজারে ভয়েস টাইপিং নেই"); return; }
+  if (S.listen) { rec && rec.stop(); return; }
+  rec = new SR(); rec.lang = S.lang === "bn" ? "bn-BD" : "en-US";
+  rec.onresult = e => insert(e.results[0][0].transcript + " ");
+  rec.onend = () => { S.listen = false; render(); };
+  rec.onerror = () => toast("ভয়েস চালু করা যায়নি");
+  try { rec.start(); S.listen = true; render(); } catch (e) { toast("ভয়েস চালু করা যায়নি"); }
+}
+function toolbar(){
+  const tg = p => () => { S.panel = S.panel === p ? null : p; render(); };
+  const items = [
+    ["globe", "ভাষা বদলান", false, switchLang],
+    ["smile", "ইমোজি", S.panel === "emoji", tg("emoji")],
+    ["clip", "ক্লিপবোর্ড", S.panel === "clip", tg("clip")],
+    ["palette", "থিম", S.panel === "theme", tg("theme")],
+    ["font", "ফন্ট", S.panel === "font", tg("font")],
+    ["dots", "আরও", S.panel === "more", tg("more")],
+    ["mic", "ভয়েস টাইপিং", S.listen, voice]
+  ];
+  const tb = el("div", "tb");
+  items.forEach(([i, a, on, fn]) => {
+    const b = el("button", on ? "on" : ""); b.type = "button"; b.innerHTML = ic(i);
+    b.setAttribute("aria-label", a); b.onclick = fn; tb.appendChild(b);
+  });
+  return tb;
+}
+function render(){
+  closePop(); kb.innerHTML = "";
+  S.mond = S.theme === "mondrian" && S.lang === "en" && !S.panel;
+  kb.className = "kb" + (S.mond ? " mond" : "");
+  kb.appendChild(toolbar());
+  if (S.panel) panelBody(); else mainRows();
+}
+out.addEventListener("copy", () => addClip(out.value.slice(out.selectionStart, out.selectionEnd)));
+out.addEventListener("cut", () => addClip(out.value.slice(out.selectionStart, out.selectionEnd)));
+render();
+</script>
+</body>
+</html>
