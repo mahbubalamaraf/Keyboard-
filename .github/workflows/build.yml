@@ -1,0 +1,672 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Generate Android project from robin-keyboard.html
+        run: |
+          mkdir -p _android && cd _android
+          cat > settings.gradle <<'ROBIN_EOF'
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.name = "RobinKeyboard"
+          include ':app'
+          ROBIN_EOF
+          cat > build.gradle <<'ROBIN_EOF'
+          plugins {
+              id 'com.android.application' version '8.5.2' apply false
+              id 'org.jetbrains.kotlin.android' version '1.9.24' apply false
+          }
+          ROBIN_EOF
+          cat > gradle.properties <<'ROBIN_EOF'
+          org.gradle.jvmargs=-Xmx2g -Dfile.encoding=UTF-8
+          android.nonTransitiveRClass=true
+          ROBIN_EOF
+          mkdir -p app
+          cat > app/build.gradle <<'ROBIN_EOF'
+          plugins {
+              id 'com.android.application'
+              id 'org.jetbrains.kotlin.android'
+          }
+
+          android {
+              namespace 'com.robin.keyboard'
+              compileSdk 34
+
+              defaultConfig {
+                  applicationId 'com.robin.keyboard'
+                  minSdk 24
+                  targetSdk 34
+                  versionCode 1
+                  versionName '1.0'
+              }
+              buildTypes {
+                  release { minifyEnabled false }
+              }
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_17
+                  targetCompatibility JavaVersion.VERSION_17
+              }
+              kotlinOptions { jvmTarget = '17' }
+          }
+          ROBIN_EOF
+          mkdir -p app/src/main
+          cat > app/src/main/AndroidManifest.xml <<'ROBIN_EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+              <uses-permission android:name="android.permission.RECORD_AUDIO" />
+              <uses-permission android:name="android.permission.VIBRATE" />
+
+              <queries>
+                  <intent>
+                      <action android:name="android.speech.RecognitionService" />
+                  </intent>
+              </queries>
+
+              <application
+                  android:allowBackup="false"
+                  android:icon="@drawable/ic_launcher"
+                  android:label="@string/app_name"
+                  android:theme="@android:style/Theme.Material.Light">
+
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+
+                  <service
+                      android:name=".RobinIME"
+                      android:exported="true"
+                      android:label="@string/app_name"
+                      android:permission="android.permission.BIND_INPUT_METHOD">
+                      <intent-filter>
+                          <action android:name="android.view.InputMethod" />
+                      </intent-filter>
+                      <meta-data
+                          android:name="android.view.im"
+                          android:resource="@xml/method" />
+                  </service>
+              </application>
+          </manifest>
+          ROBIN_EOF
+          mkdir -p app/src/main/res/xml
+          cat > app/src/main/res/xml/method.xml <<'ROBIN_EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <input-method xmlns:android="http://schemas.android.com/apk/res/android"
+              android:settingsActivity="com.robin.keyboard.MainActivity">
+              <subtype
+                  android:imeSubtypeLocale="bn_BD"
+                  android:imeSubtypeMode="keyboard"
+                  android:label="রবিন" />
+          </input-method>
+          ROBIN_EOF
+          mkdir -p app/src/main/res/values
+          cat > app/src/main/res/values/strings.xml <<'ROBIN_EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <string name="app_name">রবিন কিবোর্ড</string>
+          </resources>
+          ROBIN_EOF
+          mkdir -p app/src/main/res/drawable
+          cat > app/src/main/res/drawable/ic_launcher.xml <<'ROBIN_EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="96dp"
+              android:height="96dp"
+              android:viewportWidth="96"
+              android:viewportHeight="96">
+              <path
+                  android:fillColor="#1C1D20"
+                  android:pathData="M16,0h64a16,16 0 0 1 16,16v64a16,16 0 0 1 -16,16h-64a16,16 0 0 1 -16,-16v-64a16,16 0 0 1 16,-16z" />
+              <path
+                  android:fillColor="#E9EBF2"
+                  android:pathData="M18,22h12v12h-12z M34,22h12v12h-12z M50,22h12v12h-12z M66,22h12v12h-12z M18,40h12v12h-12z M34,40h12v12h-12z M50,40h12v12h-12z M66,40h12v12h-12z M18,58h60v12h-60z" />
+          </vector>
+          ROBIN_EOF
+          mkdir -p app/src/main/java/com/robin/keyboard
+          cat > app/src/main/java/com/robin/keyboard/RobinIME.kt <<'ROBIN_EOF'
+          package com.robin.keyboard
+
+          import android.Manifest
+          import android.annotation.SuppressLint
+          import android.content.ClipData
+          import android.content.ClipboardManager
+          import android.content.Context
+          import android.content.Intent
+          import android.content.pm.PackageManager
+          import android.graphics.Color
+          import android.media.AudioManager
+          import android.inputmethodservice.InputMethodService
+          import android.os.Build
+          import android.os.Bundle
+          import android.os.Handler
+          import android.os.Looper
+          import android.os.VibrationEffect
+          import android.os.Vibrator
+          import android.speech.RecognitionListener
+          import android.speech.RecognizerIntent
+          import android.speech.SpeechRecognizer
+          import android.view.KeyEvent
+          import android.view.View
+          import android.view.ViewGroup
+          import android.view.inputmethod.EditorInfo
+          import android.view.inputmethod.ExtractedTextRequest
+          import android.webkit.JavascriptInterface
+          import android.webkit.WebView
+          import android.webkit.WebViewClient
+          import org.json.JSONObject
+          import java.text.BreakIterator
+          import java.util.concurrent.Callable
+          import java.util.concurrent.FutureTask
+          import java.util.concurrent.TimeUnit
+          import kotlin.math.abs
+
+          class RobinIME : InputMethodService() {
+
+              private val main = Handler(Looper.getMainLooper())
+              private var web: WebView? = null
+              private var recognizer: SpeechRecognizer? = null
+              private var listening = false
+
+              override fun onEvaluateFullscreenMode(): Boolean = false
+
+              @SuppressLint("SetJavaScriptEnabled")
+              override fun onCreateInputView(): View {
+                  val w = WebView(this)
+                  w.setBackgroundColor(Color.BLACK)
+                  w.layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(290))
+                  w.overScrollMode = View.OVER_SCROLL_NEVER
+                  w.isVerticalScrollBarEnabled = false
+                  w.isHorizontalScrollBarEnabled = false
+                  w.setOnLongClickListener { true }
+                  w.isLongClickable = false
+                  w.settings.javaScriptEnabled = true
+                  w.settings.domStorageEnabled = true
+                  w.settings.allowFileAccess = true
+                  w.settings.textZoom = 100
+                  w.webViewClient = WebViewClient()
+                  w.addJavascriptInterface(Bridge(), "IME")
+                  w.loadUrl("file:///android_asset/keyboard.html")
+                  web = w
+                  return w
+              }
+
+              override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
+                  super.onStartInputView(info, restarting)
+                  if (!restarting) {
+                      js("try{S.panel=null;S.layer='main';S.shift=false;render();}catch(e){}")
+                  }
+              }
+
+              override fun onFinishInputView(finishingInput: Boolean) {
+                  super.onFinishInputView(finishingInput)
+                  if (listening) recognizer?.stopListening()
+              }
+
+              override fun onDestroy() {
+                  recognizer?.destroy()
+                  recognizer = null
+                  web?.destroy()
+                  web = null
+                  super.onDestroy()
+              }
+
+              // ---------- helpers ----------
+
+              private fun dp(v: Int): Int = (v * resources.displayMetrics.density + 0.5f).toInt()
+
+              private fun js(code: String) {
+                  main.post { web?.evaluateJavascript(code, null) }
+              }
+
+              private fun toastJs(msg: String) {
+                  js("try{toast(" + JSONObject.quote(msg) + ")}catch(e){}")
+              }
+
+              private fun <T> onMain(block: () -> T): T? {
+                  if (Looper.myLooper() == Looper.getMainLooper()) return block()
+                  val task = FutureTask(Callable { block() })
+                  main.post(task)
+                  return try {
+                      task.get(800, TimeUnit.MILLISECONDS)
+                  } catch (e: Exception) {
+                      null
+                  }
+              }
+
+              private fun clipboard(): ClipboardManager =
+                  getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+
+              @Suppress("DEPRECATION")
+              private fun vibrateKey() {
+                  val v = getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator ?: return
+                  if (!v.hasVibrator()) return
+                  if (Build.VERSION.SDK_INT >= 26) {
+                      v.vibrate(VibrationEffect.createOneShot(14, VibrationEffect.DEFAULT_AMPLITUDE))
+                  } else {
+                      v.vibrate(14)
+                  }
+              }
+
+              // ---------- typing ----------
+
+              private fun enter() {
+                  val ic = currentInputConnection ?: return
+                  val opts = currentInputEditorInfo?.imeOptions ?: 0
+                  val action = opts and EditorInfo.IME_MASK_ACTION
+                  val noEnterAction = (opts and EditorInfo.IME_FLAG_NO_ENTER_ACTION) != 0
+                  if (!noEnterAction &&
+                      action != EditorInfo.IME_ACTION_NONE &&
+                      action != EditorInfo.IME_ACTION_UNSPECIFIED
+                  ) {
+                      ic.performEditorAction(action)
+                  } else {
+                      sendDownUpKeyEvents(KeyEvent.KEYCODE_ENTER)
+                  }
+              }
+
+              private fun lastClusterLen(s: String): Int {
+                  val cp = s.codePointBefore(s.length)
+                  val cpLen = Character.charCount(cp)
+                  val emojiish = cp == 0xFE0F || cp == 0x200D || cp >= 0x1F000 || (cp in 0x2190..0x2BFF)
+                  if (!emojiish) return cpLen
+                  val bi = BreakIterator.getCharacterInstance()
+                  bi.setText(s)
+                  val start = bi.preceding(s.length)
+                  return if (start == BreakIterator.DONE) cpLen else s.length - start
+              }
+
+              private fun del() {
+                  val ic = currentInputConnection ?: return
+                  val sel = ic.getSelectedText(0)
+                  if (!sel.isNullOrEmpty()) {
+                      ic.commitText("", 1)
+                      return
+                  }
+                  val before = ic.getTextBeforeCursor(32, 0)?.toString()
+                  if (before.isNullOrEmpty()) {
+                      sendDownUpKeyEvents(KeyEvent.KEYCODE_DEL)
+                      return
+                  }
+                  ic.deleteSurroundingText(lastClusterLen(before), 0)
+              }
+
+              // ---------- voice ----------
+
+              private fun setListening(b: Boolean) {
+                  listening = b
+                  js("try{__listen($b)}catch(e){}")
+              }
+
+              private fun toggleVoice(lang: String) {
+                  if (listening) {
+                      recognizer?.stopListening()
+                      return
+                  }
+                  if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                      toastJs("মাইক্রোফোনের অনুমতি দিন")
+                      startActivity(
+                          Intent(this, MainActivity::class.java)
+                              .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                              .putExtra("mic", true)
+                      )
+                      return
+                  }
+                  if (!SpeechRecognizer.isRecognitionAvailable(this)) {
+                      toastJs("এই ফোনে ভয়েস টাইপিং নেই")
+                      return
+                  }
+                  recognizer?.destroy()
+                  val r = SpeechRecognizer.createSpeechRecognizer(this)
+                  r.setRecognitionListener(object : RecognitionListener {
+                      override fun onReadyForSpeech(params: Bundle?) {}
+                      override fun onBeginningOfSpeech() {}
+                      override fun onRmsChanged(rmsdB: Float) {}
+                      override fun onBufferReceived(buffer: ByteArray?) {}
+                      override fun onEndOfSpeech() {}
+                      override fun onPartialResults(partialResults: Bundle?) {}
+                      override fun onEvent(eventType: Int, params: Bundle?) {}
+                      override fun onError(error: Int) {
+                          setListening(false)
+                          toastJs("ভয়েস শোনা যায়নি")
+                      }
+
+                      override fun onResults(results: Bundle?) {
+                          val t = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()
+                          if (!t.isNullOrEmpty()) currentInputConnection?.commitText("$t ", 1)
+                          setListening(false)
+                      }
+                  })
+                  recognizer = r
+                  val i = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+                      .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                      .putExtra(RecognizerIntent.EXTRA_LANGUAGE, lang)
+                  setListening(true)
+                  r.startListening(i)
+              }
+
+              // ---------- JS bridge ----------
+
+              inner class Bridge {
+                  @JavascriptInterface
+                  fun commit(t: String) {
+                      main.post {
+                          if (t == "\n") enter() else currentInputConnection?.commitText(t, 1)
+                      }
+                  }
+
+                  @JavascriptInterface
+                  fun backspace() {
+                      main.post { del() }
+                  }
+
+                  @JavascriptInterface
+                  fun move(d: Int) {
+                      main.post {
+                          val code = if (d < 0) KeyEvent.KEYCODE_DPAD_LEFT else KeyEvent.KEYCODE_DPAD_RIGHT
+                          repeat(abs(d)) { sendDownUpKeyEvents(code) }
+                      }
+                  }
+
+                  @JavascriptInterface
+                  fun resize(cssPx: Int) {
+                      main.post {
+                          val v = web ?: return@post
+                          val lp = v.layoutParams
+                          val h = dp(cssPx)
+                          if (lp.height != h) {
+                              lp.height = h
+                              v.layoutParams = lp
+                          }
+                      }
+                  }
+
+                  @JavascriptInterface
+                  fun haptic() {
+                      main.post { vibrateKey() }
+                  }
+
+                  @JavascriptInterface
+                  fun click() {
+                      main.post {
+                          (getSystemService(Context.AUDIO_SERVICE) as AudioManager)
+                              .playSoundEffect(AudioManager.FX_KEYPRESS_STANDARD)
+                      }
+                  }
+
+                  @JavascriptInterface
+                  fun voice(lang: String) {
+                      main.post { toggleVoice(lang) }
+                  }
+
+                  @JavascriptInterface
+                  fun copyAll(): String {
+                      return onMain {
+                          val ic = currentInputConnection
+                          if (ic == null) {
+                              ""
+                          } else {
+                              val extracted = ic.getExtractedText(ExtractedTextRequest(), 0)?.text?.toString()
+                              val text = extracted?.takeIf { it.isNotEmpty() }
+                                  ?: ((ic.getTextBeforeCursor(10000, 0) ?: "").toString() +
+                                      (ic.getTextAfterCursor(10000, 0) ?: "").toString())
+                              if (text.isNotEmpty()) {
+                                  clipboard().setPrimaryClip(ClipData.newPlainText("robin", text))
+                              }
+                              text
+                          }
+                      } ?: ""
+                  }
+
+                  @JavascriptInterface
+                  fun clearAll() {
+                      main.post {
+                          currentInputConnection?.deleteSurroundingText(100000, 100000)
+                      }
+                  }
+
+                  @JavascriptInterface
+                  fun getClipboard(): String {
+                      return onMain {
+                          val clip = clipboard().primaryClip
+                          if (clip != null && clip.itemCount > 0) {
+                              clip.getItemAt(0).coerceToText(this@RobinIME)?.toString() ?: ""
+                          } else {
+                              ""
+                          }
+                      } ?: ""
+                  }
+              }
+          }
+          ROBIN_EOF
+          mkdir -p app/src/main/java/com/robin/keyboard
+          cat > app/src/main/java/com/robin/keyboard/MainActivity.kt <<'ROBIN_EOF'
+          package com.robin.keyboard
+
+          import android.Manifest
+          import android.app.Activity
+          import android.content.Intent
+          import android.os.Bundle
+          import android.provider.Settings
+          import android.view.inputmethod.InputMethodManager
+          import android.widget.Button
+          import android.widget.EditText
+          import android.widget.LinearLayout
+          import android.widget.ScrollView
+          import android.widget.TextView
+
+          class MainActivity : Activity() {
+
+              override fun onCreate(savedInstanceState: Bundle?) {
+                  super.onCreate(savedInstanceState)
+                  val pad = (20 * resources.displayMetrics.density).toInt()
+                  val root = LinearLayout(this)
+                  root.orientation = LinearLayout.VERTICAL
+                  root.setPadding(pad, pad, pad, pad)
+
+                  val title = TextView(this)
+                  title.text = "রবিন কিবোর্ড"
+                  title.textSize = 26f
+                  root.addView(title)
+
+                  val help = TextView(this)
+                  help.text = "ফোনে কিবোর্ড হিসেবে ব্যবহার করতে নিচের ধাপগুলো করুন।"
+                  help.setPadding(0, pad / 2, 0, pad / 2)
+                  root.addView(help)
+
+                  fun addButton(label: String, onClick: () -> Unit) {
+                      val b = Button(this)
+                      b.text = label
+                      b.setOnClickListener { onClick() }
+                      root.addView(b)
+                  }
+
+                  addButton("১. কিবোর্ড চালু করুন") {
+                      startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS))
+                  }
+                  addButton("২. রবিন কিবোর্ড বেছে নিন") {
+                      (getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager).showInputMethodPicker()
+                  }
+                  addButton("৩. ভয়েস টাইপিংয়ের জন্য মাইক্রোফোন অনুমতি") {
+                      requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), 1)
+                  }
+
+                  val test = EditText(this)
+                  test.hint = "এখানে চেপে কিবোর্ড পরীক্ষা করুন"
+                  test.minLines = 3
+                  root.addView(test)
+
+                  val scroll = ScrollView(this)
+                  scroll.addView(root)
+                  setContentView(scroll)
+
+                  if (intent?.getBooleanExtra("mic", false) == true) {
+                      requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), 1)
+                  }
+              }
+          }
+          ROBIN_EOF
+          mkdir -p tools
+          cat > tools/patch_html.py <<'ROBIN_EOF'
+          import re, sys
+
+          src, dst = sys.argv[1], sys.argv[2]
+          h = open(src, encoding="utf-8").read()
+
+
+          def rep(old, new):
+              global h
+              n = h.count(old)
+              if n != 1:
+                  sys.exit("patch failed: expected 1 match, found %d for: %r" % (n, old[:70]))
+              h = h.replace(old, new)
+
+
+          # the keyboard has no INTERNET permission, so drop the web-font link (system Bengali fonts are used)
+          h = re.sub(r'<link rel="stylesheet" href="https://fonts\.googleapis\.com[^>]*>\n?', "", h)
+
+          CSS = """body.ime{max-width:none;margin:0;height:auto}
+          body.ime textarea{display:none}
+          body.ime .kb{padding-top:14px}
+          body.ime,body.ime *{-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none}
+          body.ime .row .key{height:calc(43px*var(--ks,1))}
+          body.ime .row.dig .key{height:calc(34px*var(--ks,1))}
+          body.ime .row .key.tab{height:34px}
+          body.ime .kb.mond .row .key{height:calc(52px*var(--ks,1))}
+          body.ime .kb.mond .row.dig .key{height:calc(40px*var(--ks,1))}
+          .list.more{display:grid;grid-template-columns:1fr 1fr;align-content:start;height:170px}
+          .list.more .key{justify-content:center}
+          </style>"""
+          rep("</style>", CSS)
+
+          # "copy all" / "clear all" talk to the real text field
+          rep("addClip(out.value);", 'if (window.IME) { addClip(IME.copyAll()); toast("কপি হয়েছে"); return; } addClip(out.value);')
+          rep('out.value = ""; out.focus(); toast("মুছে গেছে");', 'if (window.IME) { IME.clearAll(); toast("মুছে গেছে"); return; } out.value = ""; out.focus(); toast("মুছে গেছে");')
+          # clipboard tab shows the phone clipboard
+          rep('if (S.panel === "clip") {', 'if (S.panel === "clip") { if (window.IME) addClip(IME.getClipboard());')
+          # voice typing runs natively
+          rep("function voice(){", 'function voice(){\n  if (window.IME) { IME.voice(S.lang === "bn" ? "bn-BD" : "en-US"); return; }')
+
+          SHIM = r"""
+          if (window.IME) {
+            document.body.classList.add("ime");
+            insert = t => { IME.commit(t); };
+            back = () => IME.backspace();
+            move = d => IME.move(d);
+            const LS = {
+              get: (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch (e) { return d; } },
+              set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} }
+            };
+            S.vib = LS.get("robinVib", "1") === "1";
+            S.snd = LS.get("robinSnd", "0") === "1";
+            S.ks = parseFloat(LS.get("robinKs", "1")) || 1;
+            S.fs = parseFloat(LS.get("robinFs", "1")) || 1;
+            const applyLook = () => {
+              document.documentElement.style.setProperty("--ks", S.ks);
+              document.documentElement.style.fontSize = (16 * S.fs) + "px";
+            };
+            applyLook();
+            const _pb = panelBody;
+            panelBody = function () {
+              _pb();
+              if (S.panel !== "more") return;
+              const l = kb.querySelector(".list");
+              if (!l) return;
+              l.classList.add("more");
+              const add = (t, fn, on) => {
+                const b = el("button", "key" + (on ? " on" : ""), t);
+                b.type = "button"; b.onclick = fn; l.appendChild(b); return b;
+              };
+              const pct = x => Math.round(x * 100) + "%";
+              const step = (k, d, lo, hi, name) => () => {
+                S[k] = Math.min(hi, Math.max(lo, Math.round((S[k] + d) * 100) / 100));
+                LS.set(k === "ks" ? "robinKs" : "robinFs", String(S[k]));
+                applyLook(); render(); toast(name + " " + pct(S[k]));
+              };
+              add("কী ভাইব্রেশন: " + (S.vib ? "চালু" : "বন্ধ"), () => {
+                S.vib = !S.vib; LS.set("robinVib", S.vib ? "1" : "0"); render(); if (S.vib) IME.haptic();
+              }, S.vib);
+              add("কী শব্দ: " + (S.snd ? "চালু" : "বন্ধ"), () => {
+                S.snd = !S.snd; LS.set("robinSnd", S.snd ? "1" : "0"); render(); if (S.snd) IME.click();
+              }, S.snd);
+              add("উচ্চতা বাড়ান", step("ks", 0.1, 0.7, 1.5, "উচ্চতা"));
+              add("উচ্চতা কমান", step("ks", -0.1, 0.7, 1.5, "উচ্চতা"));
+              add("লেখা বড় করুন", step("fs", 0.1, 0.8, 1.4, "লেখার সাইজ"));
+              add("লেখা ছোট করুন", step("fs", -0.1, 0.8, 1.4, "লেখার সাইজ"));
+              add("সাইজ রিসেট", () => {
+                S.ks = 1; S.fs = 1; LS.set("robinKs", "1"); LS.set("robinFs", "1"); applyLook(); render(); toast("আগের সাইজে ফিরেছে");
+              }).style.gridColumn = "1 / -1";
+            };
+            const _render = render;
+            render = function () { _render(); IME.resize(Math.ceil(kb.getBoundingClientRect().height)); };
+            window.__listen = b => { S.listen = b; render(); };
+            document.addEventListener("pointerdown", e => { if (e.target.closest && e.target.closest(".key, .tb button")) { if (S.vib) IME.haptic(); if (S.snd) IME.click(); } });
+            document.addEventListener("contextmenu", e => e.preventDefault());
+            render();
+          }
+          """
+          rep("\nrender();\n</script>", "\nrender();\n" + SHIM + "</script>")
+
+          open(dst, "w", encoding="utf-8").write(h)
+          print("patched ->", dst)
+          ROBIN_EOF
+          mkdir -p app/src/main/assets
+          SRC=$(ls ../robin-keyboard.html ../keyboard.html 2>/dev/null | head -n1)
+          test -n "$SRC" || { echo "robin-keyboard.html পাওয়া যায়নি (রিপোর রুটে রাখুন)"; exit 1; }
+          python3 tools/patch_html.py "$SRC" app/src/main/assets/keyboard.html
+
+      - name: Build debug APK
+        working-directory: _android
+        run: gradle assembleDebug --no-daemon
+
+      - name: Rename APK
+        run: cp _android/app/build/outputs/apk/debug/app-debug.apk robin-keyboard.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: robin-keyboard-apk
+          path: robin-keyboard.apk
+
+      - name: Publish to Releases (direct download link)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: রবিন কিবোর্ড (latest APK)
+          files: robin-keyboard.apk
