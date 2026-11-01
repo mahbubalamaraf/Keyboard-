@@ -51,6 +51,7 @@ svg{width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8; s
 }
 .row.dig .key{height:34px; font-size:1.1rem}
 .key:active{background:var(--hi)}
+.mb{color:transparent}
 .key sup{position:absolute; top:1px; right:3px; font-size:.58rem; line-height:1; opacity:.7}
 .key.sp{background:var(--sp); font-size:.95rem}
 .key.on{background:var(--acc); color:var(--ink)}
@@ -97,13 +98,21 @@ const BN = [
   [["১","1"],["২","2"],["৩","3"],["৪","4"],["৫","5"],["৬","6"],["৭","7"],["৮","8"],["৯","9"],["০","0"]],
   [["দ","ধ"],["ূ","ঊ"],["ী","ঈ"],["র","ড়"],["ট","ঠ"],["এ","ঐ"],["ু","উ"],["ি","ই"],["ও","ঔ"],["প","ফ"],["ে","ৈ"],["ো","ৌ"]],
   [["া","অ"],["স","য","ষ"],["ড","ঢ"],["ত","থ"],["গ","ঘ"],["হ","ঃ"],["জ","ঝ"],["ক","খ"],["ল","ং"]],
-  [["য়","ৎ"],["শ","ঢ়"],["চ","ছ"],["আ","ঋ"],["ব","ভ"],["ন","ণ","ঞ"],["ম","ঙ"],["্","ৃ"],["ঁ"]]
+  [["য়","্য","ৎ"],["শ","ঢ়"],["চ","ছ"],["আ","ঋ"],["ব","ভ"],["ন","ণ","ঞ"],["ম","ঙ"],["ৃ"],["্","ঁ"]]
 ];
 const EN = [
   [["1","!"],["2","@"],["3","#"],["4","$"],["5","%"],["6","^"],["7","&"],["8","*"],["9","("],["0",")"]],
   ...["qwertyuiop","asdfghjkl","zxcvbnm"].map(s => [...s].map(c => [c, c.toUpperCase()]))
 ];
-const SYM = ['-/:;()৳$&@"', "#%*+=_~<>{}"].map(s => [...s].map(c => [c]));
+const A = s => [...s].map(c => [c]);
+const SYMP = [
+  { r1: A("~\\<>_=[]"),
+    r2: [["@"], ["#"], ["৳", "$"], ["%"], ["&"], ["*", "★"], ["-", "_"], ["+"], ["(", "<"], [")", ">"]],
+    r3: [["!"], ['"'], ["'"], [":", "ঃ"], [";"], ["/"], ["?"]] },
+  { r1: A("`^|{}«»¿"),
+    r2: A("¢£€¥°•©®™…"),
+    r3: A("§¶±×÷≠≈") }
+];
 const EMOJI = [
   ["মুখ","😀 😃 😄 😁 😆 😅 😂 🤣 😊 😇 🙂 🙃 😉 😌 😍 🥰 😘 😋 😛 😜 🤪 🤗 🤭 🤔 😐 😏 😒 🙄 😬 😔 😴 😷 🤒 🤢 🥵 🥶 🤯 🥳 😎 🤓 😕 😟 🙁 😮 😲 😳 🥺 😢 😭 😱 😩 😤 😡 😠 😈 💀 💩 🤡 👻 👽 🤖"],
   ["হাত","👍 👎 👌 ✌️ 🤞 🤟 🤘 🤙 👈 👉 👆 👇 ☝️ 👋 ✋ 👏 🙌 🤝 🙏 💪 ✍️ 💅 👀 👅 👄 🧠 👶 👦 👧 👨 👩 👴 👵"],
@@ -130,6 +139,7 @@ const P = {
   font:'<path d="M5 19L12 5l7 14M8 14h8"/>',
   left:'<path d="M15 6l-6 6 6 6"/>', right:'<path d="M9 6l6 6-6 6"/>'
 };
+P.tab = '<path d="M3 12h13M12 7l5 5-5 5M20 6v12"/>';
 const ic = n => '<svg viewBox="0 0 24 24" aria-hidden="true">' + P[n] + '</svg>';
 const KARS = "ািীুূৃেৈোৌ";
 const out = document.getElementById("out"), kb = document.getElementById("kb");
@@ -217,10 +227,14 @@ function spKey(label, on, fn, cls, aria){
   if (aria) b.setAttribute("aria-label", aria);
   b.onclick = fn; return b;
 }
-const MARKS = /[\u0981\u09BC\u09BE-\u09CC\u09CD\u09D7]/;
+const MARKS = /^[\u0981-\u0983\u09BC\u09BE-\u09CC\u09CD\u09D7]/;
 function setMark(node, t){
-  if (t.length === 1 && MARKS.test(t)) node.textContent = "\u00A0" + t;
-  else node.textContent = t;
+  node.textContent = "";
+  if (MARKS.test(t)) {
+    // invisible placeholder base keeps the sign in one valid cluster, so no dotted circle is drawn
+    const b = document.createElement("span"); b.className = "mb"; b.textContent = "\u25CC";
+    node.appendChild(b); node.appendChild(document.createTextNode(t));
+  } else node.textContent = t;
 }
 function supEl(t){ const s = document.createElement("sup"); setMark(s, t); return s; }
 function letterKey(def, plain){
@@ -289,10 +303,37 @@ function mondRows(){
   bot.appendChild(mondC(spKey(ic("enter"), false, () => insert("\n"), "w15", "নতুন লাইন"), "r"));
   kb.appendChild(bot);
 }
+function symRows(bn){
+  const pg2 = S.layer === "sym2", pg = SYMP[pg2 ? 1 : 0];
+  const mk = (d, i, j) => { const k = letterKey(d); if (S.mond) k.classList.add("ybkwrbwr"[(i + j) % 8]); return k; };
+  const r0 = row("dig");
+  (bn ? BN : EN)[0].forEach((d, j) => r0.appendChild(mk(d, 0, j)));
+  kb.appendChild(r0);
+  const r1 = row("inset");
+  r1.appendChild(spKey(ic("tab"), false, () => insert("\t"), "", "ট্যাব"));
+  pg.r1.forEach((d, j) => r1.appendChild(mk(d, 1, j)));
+  kb.appendChild(r1);
+  const r2 = row();
+  pg.r2.forEach((d, j) => r2.appendChild(mk(d, 2, j)));
+  kb.appendChild(r2);
+  const r3 = row();
+  r3.appendChild(spKey(pg2 ? (bn ? "১২৩" : "123") : "= \\ <", false, () => { S.layer = pg2 ? "sym" : "sym2"; render(); }, "w15", pg2 ? "চিহ্ন" : "আরও চিহ্ন"));
+  pg.r3.forEach((d, j) => r3.appendChild(mk(d, 3, j)));
+  r3.appendChild(backKey("w15"));
+  kb.appendChild(r3);
+  const bot = row();
+  bot.appendChild(spKey(bn ? "অকখ" : "ABC", false, () => { S.layer = "main"; S.shift = false; render(); }, "w15", "অক্ষর"));
+  bot.appendChild(letterKey([",", ";", ":", "?", "!", "'", '"'], true));
+  const sp = spaceKey(); sp.style.flex = "5"; bot.appendChild(sp);
+  bot.appendChild(letterKey([".", "?", "!", ":", ";", "-"], true));
+  bot.appendChild(spKey("Go", false, () => insert("\n"), "w15", "নতুন লাইন"));
+  kb.appendChild(bot);
+}
 function mainRows(){
-  const bn = S.lang === "bn", sym = S.layer === "sym";
+  const bn = S.lang === "bn", sym = S.layer === "sym" || S.layer === "sym2";
   if (S.mond && !sym) return mondRows();
-  const rows = sym ? [(bn ? BN : EN)[0], ...SYM] : (bn ? BN : EN);
+  if (sym) return symRows(bn);
+  const rows = bn ? BN : EN;
   rows.forEach((r, i) => {
     const rw = row(i === 0 ? "dig" : (!sym && i === 2 ? "inset" : ""));
     if (i === 3 && !sym) rw.appendChild(spKey(ic("shift"), S.shift, () => { S.shift = !S.shift; render(); }, "w19", "শিফট"));
