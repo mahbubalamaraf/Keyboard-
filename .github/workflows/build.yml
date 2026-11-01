@@ -586,6 +586,8 @@ jobs:
           rep('out.value = ""; out.focus(); toast("মুছে গেছে");', 'if (window.IME) { IME.clearAll(); toast("মুছে গেছে"); return; } out.value = ""; out.focus(); toast("মুছে গেছে");')
           # clipboard tab shows the phone clipboard
           rep('if (S.panel === "clip") {', 'if (S.panel === "clip") { if (window.IME) addClip(IME.getClipboard());')
+          # on the phone the "system" font option must still use the bundled Bengali font (its dotted circle is blanked)
+          rep("""(f[0] === "system" ? "" : ',"Noto Sans Bengali","Nirmala UI"')""", """',"Noto Sans Bengali","Nirmala UI"'""")
           # voice typing runs natively
           rep("function voice(){", 'function voice(){\n  if (window.IME) { IME.voice(S.lang === "bn" ? "bn-BD" : "en-US"); return; }')
 
@@ -761,8 +763,45 @@ jobs:
           with open(os.path.join(out, "fonts.css"), "w", encoding="utf-8") as f:
               f.write(css)
           ROBIN_EOF
+          mkdir -p tools
+          cat > tools/blank_circle.py <<'ROBIN_EOF'
+          import glob, os, sys
+
+          # Makes the dotted-circle glyph (U+25CC) invisible inside the bundled fonts.
+          # Bengali signs (kar, phola, hasanta...) drawn on their own make the shaper add that circle;
+          # with an empty glyph the sign stays and only the circle disappears.
+          from fontTools.ttLib import TTFont
+          from fontTools.ttLib.tables._g_l_y_f import Glyph
+
+
+          def blank(path):
+              f = TTFont(path)
+              name = f.getBestCmap().get(0x25CC)
+              if not name:
+                  return False
+              if "glyf" not in f:
+                  print("skip (not TrueType outlines):", os.path.basename(path))
+                  return False
+              f["glyf"][name] = Glyph()
+              if "gvar" in f and name in f["gvar"].variations:
+                  del f["gvar"].variations[name]
+              f.save(path)
+              return True
+
+
+          folder = sys.argv[1]
+          done = 0
+          for p in sorted(glob.glob(os.path.join(folder, "*.woff2")) + glob.glob(os.path.join(folder, "*.ttf"))):
+              try:
+                  if blank(p):
+                      done += 1
+              except Exception as e:
+                  print("could not edit", os.path.basename(p), "-", e)
+          print("dotted circle blanked in", done, "font file(s)")
+          ROBIN_EOF
           mkdir -p app/src/main/assets
           python3 tools/fetch_fonts.py app/src/main/assets/fonts || echo "ফন্ট ডাউনলোড হয়নি, সিস্টেম ফন্ট ব্যবহার হবে"
+          python3 -m pip install -q --break-system-packages fonttools brotli && python3 tools/blank_circle.py app/src/main/assets/fonts || echo "ফন্টের বৃত্ত সরানো যায়নি"
           SRC=$(ls ../robin-keyboard.html ../keyboard.html 2>/dev/null | head -n1)
           test -n "$SRC" || { echo "robin-keyboard.html পাওয়া যায়নি (রিপোর রুটে রাখুন)"; exit 1; }
           python3 tools/patch_html.py "$SRC" app/src/main/assets/keyboard.html
